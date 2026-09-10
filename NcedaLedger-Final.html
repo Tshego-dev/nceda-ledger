@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nceda Ledger — Premium</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js for premium analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* ============================================================
+           GLASSMORPHISM DESIGN TOKENS & BASE
+           ============================================================ */
+        :root {
+            /* Scenic Background Palette (Derived from image) */
+            --bg-image: url('https://images.unsplash.com/photo-1542224566-6e85f2e6772f?q=80&w=2672&auto=format&fit=crop');
+            
+            /* Glass Properties */
+            --glass-bg: rgba(255, 255, 255, 0.12);
+            --glass-bg-hover: rgba(255, 255, 255, 0.2);
+            --glass-bg-active: rgba(255, 255, 255, 0.3);
+            --glass-bg-dark: rgba(0, 0, 0, 0.2);
+            --glass-border: rgba(255, 255, 255, 0.25);
+            --glass-border-light: rgba(255, 255, 255, 0.5);
+            --glass-blur: blur(32px);
+            --glass-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+            
+            /* Typography */
+            --text-main: #FFFFFF;
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --text-dark: #1A1A1A;
+            --font-family: 'Inter', -apple-system, sans-serif;
+            
+            /* Accents */
+            --accent-primary: #00E086;
+            --accent-warning: #FFB347;
+            --accent-danger: #FF6B6B;
+            --accent-info: #00B4D8;
+            
+            /* Geometry */
+            --radius-pill: 9999px;
+            --radius-xl: 32px;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: var(--font-family);
+            color: var(--text-main);
+            background: #1a3644 var(--bg-image) center/cover no-repeat fixed;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ensure legibility over bright parts of the image */
+        body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(13, 31, 45, 0.4), rgba(0, 0, 0, 0.6));
+            z-index: -1;
+        }
+
+        button, input {
+            font-family: inherit;
+            outline: none;
+            border: none;
+            background: none;
+            color: inherit;
+        }
+        
+        button { cursor: pointer; }
+        
+        /* Scrollbars */
+        ::-webkit-scrollbar { 
+            width: 6px; 
+            height: 6px; 
+        }
+        ::-webkit-scrollbar-track { 
+            background: transparent; 
+        }
+        ::-webkit-scrollbar-thumb { 
+            background: rgba(255,255,255,0.2); 
+            border-radius: 10px; 
+        }
+        ::-webkit-scrollbar-thumb:hover { 
+            background: rgba(255,255,255,0.4); 
+        }
+
+        /* ============================================================
+           SPATIAL LAYOUT
+           ============================================================ */
+        .vision-layout {
+            display: flex;
+            height: 100vh;
+            padding: 40px;
+            gap: 24px;
+            align-items: center;
+            justify-content: center;
+            max-width: 1600px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ── Navigation Buttons ── */
+        .toolbar-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .toolbar-btn:hover, .toolbar-btn.active {
+            background: var(--glass-bg-hover);
+            color: var(--text-main);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .toolbar-btn svg { 
+            width: 20px; 
+            height: 20px; 
+        }
+
+        /* ── Main Glass Window ── */
+        .vision-main {
+            flex: 1;
+            height: 85vh;
+            border-radius: var(--radius-xl);
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            overflow: hidden;
+            box-shadow: var(--glass-shadow);
+        }
+
+        /* ── Persistent Top Bar ── */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 40px;
+            background: rgba(0, 0, 0, 0.15);
+            border-bottom: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        .store-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .store-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        
+        .store-subtitle {
+            font-size: 12px;
+            color: var(--accent-primary);
+            margin-top: 2px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Analytics Dashboard ── */
+        .analytics-dashboard {
+            display: flex; 
+            flex-direction: column; 
+            gap: 24px; 
+            flex: 1; 
+            padding-bottom: 24px;
+        }
+        
+        .kpi-row {
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+            gap: 24px;
+        }
+        
+        .kpi-card {
+            background: var(--glass-bg-dark); 
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg); 
+            padding: 24px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px;
+            position: relative; 
+            overflow: hidden; 
+            transition: 0.3s;
+        }
+        .kpi-card:hover { 
+            border-color: var(--glass-border-light); 
+            transform: translateY(-2px); 
+        }
+        .kpi-card::before { 
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 3px; 
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-info)); 
+        }
+        
+        .kpi-title { 
+            font-size: 13px; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            font-weight: 600; 
+            letter-spacing: 1px; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+        }
+        .kpi-value { 
+            font-size: 36px; 
+            font-weight: 700; 
+            color: var(--text-main); 
+            font-family: var(--font-family); 
+            letter-spacing: -1px; 
+        }
+
+        .charts-row {
+            display: flex; 
+            gap: 24px; 
+            flex: 1; 
+            min-height: 320px;
+        }
+        
+        .chart-card {
+            background: var(--glass-bg-dark); 
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg); 
+            padding: 24px; 
+            display: flex; 
+            flex-direction: column; 
+            flex: 1;
+        }
+        
+        .chart-header { 
+            font-size: 15px; 
+            font-weight: 600; 
+            margin-bottom: 20px; 
+            color: var(--text-main); 
+        }
+        .chart-body { 
+            flex: 1; 
+            position: relative; 
+            min-height: 200px; 
+        }
+
+        /* ── Content Area (Playlists/Ledger) ── */
+        .vision-content {
+            flex: 1;
+            padding: 32px 40px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .content-title h2 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .content-title p {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Search Pill */
+        .search-pill {
+            display: flex;
+            align-items: center;
+            background: var(--glass-bg-dark);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-pill);
+            padding: 8px 16px;
+            width: 300px;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        .search-pill:focus-within {
+            background: var(--glass-bg-hover);
+            border-color: var(--glass-border-light);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.1);
+        }
+        .search-pill input {
+            flex: 1;
+            font-size: 14px;
+        }
+        .search-pill input::placeholder { 
+            color: rgba(255,255,255,0.4); 
+        }
+
+        /* ── Glass Table (Ledger) ── */
+        .glass-table-container {
+            flex: 1;
+            background: var(--glass-bg-dark);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            overflow-y: auto; 
+            min-height: 0; 
+        }
+
+        .glass-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .glass-table th {
+            padding: 16px 20px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.2);
+        }
+
+        .glass-table td {
+            padding: 16px 20px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: middle;
+        }
+
+        .glass-table tr { 
+            transition: background 0.2s; 
+        }
+        .glass-table tr:hover { 
+            background: var(--glass-bg-hover); 
+        }
+        .glass-table tr:last-child td { 
+            border-bottom: none; 
+        }
+
+        .customer-cell { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+        }
+        .avatar {
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%;
+            background: var(--accent-info); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 12px; 
+            font-weight: bold;
+        }
+        .cust-details div:first-child { 
+            font-weight: 500; 
+        }
+        .cust-details div:last-child { 
+            font-size: 11px; 
+            color: var(--text-muted); 
+            margin-top: 2px; 
+            font-family: monospace; 
+        }
+
+        .status-badge {
+            display: inline-flex; 
+            align-items: center; 
+            gap: 6px;
+            padding: 4px 10px; 
+            border-radius: var(--radius-pill);
+            font-size: 11px; 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+            background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .status-badge::before { 
+            content:''; 
+            width:6px; 
+            height:6px; 
+            border-radius:50%; 
+        }
+        .status-active { 
+            color: var(--accent-primary); 
+            border-color: rgba(0,224,134,0.3); 
+        }
+        .status-active::before { 
+            background: var(--accent-primary); 
+            box-shadow: 0 0 8px var(--accent-primary); 
+        }
+        .status-pending { 
+            color: var(--accent-warning); 
+            border-color: rgba(255,179,71,0.3); 
+        }
+        .status-pending::before { 
+            background: var(--accent-warning); 
+        }
+        .status-settled { 
+            color: var(--text-muted); 
+        }
+        .status-settled::before { 
+            background: var(--text-muted); 
+        }
+        .status-overdue { 
+            color: var(--accent-danger); 
+            border-color: rgba(255,107,107,0.3); 
+        }
+        .status-overdue::before { 
+            background: var(--accent-danger); 
+            box-shadow: 0 0 8px var(--accent-danger); 
+        }
+
+        /* Table Actions */
+        .action-row { 
+            display: flex; 
+            gap: 8px; 
+            opacity: 0.5; 
+            transition: opacity 0.2s;
+        }
+        .glass-table tr:hover .action-row { 
+            opacity: 1; 
+        }
+        
+        .btn-glass {
+            padding: 6px 12px; 
+            border-radius: var(--radius-pill);
+            font-size: 12px; 
+            font-weight: 500;
+            background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s;
+        }
+        .btn-glass:hover { 
+            background: rgba(255,255,255,0.2); 
+            color: #fff; 
+        }
+        .btn-glass.primary { 
+            background: var(--accent-primary); 
+            border-color: var(--accent-primary); 
+            color: #000; 
+            font-weight: 600; 
+        }
+        .btn-glass.primary:hover { 
+            box-shadow: 0 0 15px rgba(0,224,134,0.4); 
+            transform: scale(1.05); 
+        }
+
+        /* ── Bottom Floating Bar ── */
+        .vision-bottom-bar {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            height: 64px;
+            border-radius: 32px;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+            box-shadow: var(--glass-shadow);
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        .bottom-badge {
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            font-size: 13px; 
+            font-weight: 500; 
+            color: var(--text-muted);
+            padding: 0 8px;
+        }
+        .bottom-badge svg { 
+            width: 18px; 
+            height: 18px; 
+            color: var(--text-main); 
+        }
+        .bottom-divider { 
+            width: 1px; 
+            height: 24px; 
+            background: var(--glass-border); 
+        }
+
+        /* ============================================================
+           SETTINGS & CUSTOMER PORTAL VIEWS
+           ============================================================ */
+        .settings-container {
+            flex: 1; 
+            background: var(--glass-bg-dark); 
+            border-radius: var(--radius-lg);
+            padding: 32px; 
+            border: 1px solid var(--glass-border); 
+            max-width: 800px;
+        }
+        .settings-group { 
+            margin-bottom: 24px; 
+        }
+        .settings-group label { 
+            display: block; 
+            font-size: 12px; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+        }
+        .settings-input {
+            width: 100%; 
+            padding: 12px 16px; 
+            border-radius: 12px;
+            background: rgba(0,0,0,0.2); 
+            border: 1px solid var(--glass-border);
+            color: #fff; 
+            font-size: 15px; 
+            transition: all 0.3s;
+        }
+        .settings-input:focus { 
+            background: rgba(0,0,0,0.4); 
+            border-color: var(--accent-primary); 
+            box-shadow: 0 0 0 3px rgba(0,224,134,0.2); 
+        }
+
+        /* Customer Portal UI */
+        .cp-app { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; 
+            background: #f4f4f4; 
+        }
+        .cp-header { 
+            background: #111; 
+            color: #fff; 
+            padding: 48px 16px 16px; 
+            text-align: center; 
+            font-weight: 600; 
+            font-size: 16px; 
+        }
+        .cp-body { 
+            flex: 1; 
+            padding: 16px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+        }
+        .cp-card { 
+            background: #fff; 
+            border-radius: 12px; 
+            padding: 16px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            border-left: 4px solid #111;
+        }
+        .cp-card.pending { 
+            border-left-color: #000; 
+        }
+        .cp-card.active { 
+            border-left-color: #00D47E; 
+        }
+        .cp-card-title { 
+            font-size: 14px; 
+            font-weight: 600; 
+            color: #111; 
+            margin-bottom: 4px; 
+        }
+        .cp-card-amt { 
+            font-size: 24px; 
+            font-weight: 800; 
+            color: #111; 
+            margin-bottom: 12px; 
+        }
+
+        @media (max-width: 1000px) {
+            .badge-text { 
+                display: none; 
+            }
+            .vision-bottom-bar { 
+                padding: 0 12px; 
+                gap: 10px; 
+            }
+        }
+
+        /* ============================================================
+           GLASS MODALS & FORMS
+           ============================================================ */
+        .modal-overlay {
+            position: fixed; 
+            inset: 0; 
+            z-index: 1000;
+            background: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(10px);
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            opacity: 0; 
+            visibility: hidden; 
+            transition: all 0.3s ease;
+        }
+        .modal-overlay.active { 
+            opacity: 1; 
+            visibility: visible; 
+        }
+        
+        .glass-modal {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border-light);
+            border-radius: var(--radius-xl);
+            width: 100%; 
+            max-width: 500px;
+            padding: 32px;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.4);
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-overlay.active .glass-modal { 
+            transform: translateY(0) scale(1); 
+        }
+
+        .modal-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 24px; 
+        }
+        .modal-header h3 { 
+            font-size: 22px; 
+            font-weight: 600; 
+        }
+        .btn-close { 
+            width: 32px; 
+            height: 32px; 
+            border-radius: 50%; 
+            background: rgba(255,255,255,0.1); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 18px; 
+            transition: 0.2s; 
+            border: none; 
+            color: #fff;
+        }
+        .btn-close:hover { 
+            background: rgba(255,255,255,0.2); 
+            transform: rotate(90deg); 
+            cursor: pointer;
+        }
+
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        .form-group label { 
+            display: block; 
+            font-size: 12px; 
+            text-transform: uppercase; 
+            color: var(--text-muted); 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+        }
+        .glass-input {
+            width: 100%; 
+            padding: 12px 16px; 
+            border-radius: 12px;
+            background: rgba(0,0,0,0.2); 
+            border: 1px solid var(--glass-border);
+            color: #fff; 
+            font-size: 15px; 
+            transition: all 0.3s;
+        }
+        .glass-input:focus { 
+            background: rgba(0,0,0,0.4); 
+            border-color: var(--accent-primary); 
+            box-shadow: 0 0 0 3px rgba(0,224,134,0.2); 
+        }
+        .glass-input::placeholder { 
+            color: rgba(255,255,255,0.3); 
+        }
+        
+        .modal-footer { 
+            display: flex; 
+            justify-content: flex-end; 
+            gap: 12px; 
+            margin-top: 32px; 
+        }
+
+        /* ============================================================
+           PHYSICAL PHONE SIMULATOR
+           ============================================================ */
+        .phone-container {
+            position: fixed; 
+            inset: 0; 
+            z-index: 2000;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            pointer-events: none; 
+            opacity: 0; 
+            transition: opacity 0.4s ease;
+        }
+        .phone-container.active { 
+            pointer-events: auto; 
+            opacity: 1; 
+        }
+        
+        .phone-backdrop {
+            position: absolute; 
+            inset: 0; 
+            background: rgba(0,0,0,0.6); 
+            backdrop-filter: blur(8px);
+        }
+
+        .phone-wrapper {
+            position: relative; 
+            z-index: 10;
+            display: flex; 
+            align-items: flex-start; 
+            gap: 32px;
+            transform: translateY(40px) scale(0.9);
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .phone-container.active .phone-wrapper { 
+            transform: translateY(0) scale(1); 
+        }
+
+        /* Giant explicit close button */
+        .phone-massive-close {
+            background: rgba(255,255,255,0.1); 
+            border: 1px solid rgba(255,255,255,0.3);
+            width: 56px; 
+            height: 56px; 
+            border-radius: 50%;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            color: #fff; 
+            font-size: 28px; 
+            cursor: pointer; 
+            backdrop-filter: blur(10px);
+            transition: all 0.2s; 
+            margin-top: 40px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .phone-massive-close:hover { 
+            background: rgba(255,255,255,0.2); 
+            transform: scale(1.1) rotate(90deg); 
+        }
+
+        /* Hardware */
+        .phone-hardware {
+            width: 340px; 
+            height: 720px; 
+            border-radius: 50px;
+            background: #000; 
+            border: 12px solid #1a1a1a;
+            position: relative; 
+            box-shadow: 0 0 0 2px #333, inset 0 0 0 2px #000, 0 40px 80px rgba(0,0,0,0.8);
+            overflow: visible;
+        }
+        
+        .hw-btn { 
+            position: absolute; 
+            background: #222; 
+            width: 3px; 
+            border-radius: 2px; 
+        }
+        .hw-mute { 
+            top: 110px; 
+            left: -15px; 
+            height: 26px; 
+        }
+        .hw-vol-up { 
+            top: 160px; 
+            left: -15px; 
+            height: 50px; 
+        }
+        .hw-vol-down { 
+            top: 230px; 
+            left: -15px; 
+            height: 50px; 
+        }
+        .hw-power { 
+            top: 180px; 
+            right: -15px; 
+            height: 75px; 
+        }
+
+        .phone-screen {
+            position: absolute; 
+            inset: 0; 
+            border-radius: 36px; 
+            background: #000; 
+            overflow: hidden;
+            display: flex; 
+            flex-direction: column;
+        }
+        
+        .dynamic-island {
+            position: absolute; 
+            top: 12px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 110px; 
+            height: 32px; 
+            background: #000; 
+            border-radius: 20px; 
+            z-index: 100;
+        }
+        .home-indicator {
+            position: absolute; 
+            bottom: 8px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 120px; 
+            height: 5px; 
+            background: rgba(255,255,255,0.4); 
+            border-radius: 10px; 
+            z-index: 100;
+        }
+
+        /* Secure Consent UI */
+        .wa-app { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; 
+            background: #0d1f2d; 
+            position: relative;
+        }
+        .wa-header { 
+            background: rgba(255,255,255,0.05); 
+            backdrop-filter: blur(10px); 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            color: #fff; 
+            padding: 48px 16px 12px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            z-index: 10;
+        }
+        .wa-back { 
+            font-size: 24px; 
+            cursor: pointer; 
+            color: rgba(255,255,255,0.6); 
+            transition: 0.2s; 
+        }
+        .wa-back:hover { 
+            color: #fff; 
+        }
+        .wa-avatar { 
+            width: 40px; 
+            height: 40px; 
+            background: rgba(0,224,134,0.1); 
+            border: 1px solid rgba(0,224,134,0.3); 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            color: var(--accent-primary); 
+        }
+        .wa-name { 
+            font-weight: 600; 
+            font-size: 15px; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            color: #fff;
+        }
+        .wa-chat-area { 
+            flex: 1; 
+            padding: 16px; 
+            overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            z-index: 1;
+        }
+        .wa-bubble { 
+            background: rgba(255,255,255,0.05); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255,255,255,0.1); 
+            padding: 16px; 
+            border-radius: 16px 16px 16px 0; 
+            max-width: 90%; 
+            font-size: 14px; 
+            color: #fff; 
+            line-height: 1.6; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            animation: slideUp 0.3s ease forwards;
+        }
+        .wa-btn { 
+            background: var(--accent-primary); 
+            color: #000; 
+            border: none; 
+            padding: 12px; 
+            border-radius: 12px; 
+            font-weight: 700; 
+            font-size: 14px; 
+            width: 100%; 
+            margin-top: 16px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            box-shadow: 0 4px 15px rgba(0,224,134,0.3);
+        }
+        .wa-btn:active { 
+            transform: scale(0.96); 
+        }
+
+        /* Toast Notifications */
+        .toast-container { 
+            position: fixed; 
+            top: 40px; 
+            right: 40px; 
+            z-index: 9999; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+        }
+        .toast {
+            background: rgba(0,0,0,0.6); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 16px 20px; 
+            border-radius: 16px; 
+            color: #fff; 
+            font-size: 14px; 
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); 
+            animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Splash Screen */
+        .splash-screen {
+            position: fixed; 
+            inset: 0; 
+            z-index: 99999; 
+            background: #0d1f2d;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .splash-content { 
+            text-align: center; 
+        }
+        .splash-title { 
+            font-size: 48px; 
+            font-weight: 700; 
+            margin-top: 24px; 
+            animation: slideUp 1s ease forwards; 
+        }
+        .splash-title span { 
+            color: var(--accent-primary); 
+        }
+        .loader-bar { 
+            width: 200px; 
+            height: 4px; 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 4px; 
+            margin: 32px auto 16px; 
+            position: relative; 
+            overflow: hidden;
+        }
+        .loader-fill { 
+            position: absolute; 
+            top:0; 
+            left:0; 
+            height: 100%; 
+            width: 40%; 
+            background: var(--accent-primary); 
+            border-radius: 4px; 
+            animation: loading 1.5s infinite ease-in-out; 
+        }
+
+        @keyframes slideUp { 
+            from { transform: translateY(20px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+        @keyframes slideInRight { 
+            from { transform: translateX(100px); opacity: 0; } 
+            to { transform: translateX(0); opacity: 1; } 
+        }
+        @keyframes loading { 
+            0% { transform: translateX(-100%); } 
+            100% { transform: translateX(300%); } 
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- SPLASH SCREEN                                               -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <svg width="80" height="80" viewBox="0 0 72 72" fill="none">
+                <circle cx="36" cy="36" r="34" stroke="url(#logoGrad)" stroke-width="3" fill="none" opacity="0.3"/>
+                <circle cx="36" cy="36" r="24" stroke="url(#logoGrad)" stroke-width="2.5" fill="none" opacity="0.6"/>
+                <path d="M24 36 C24 28, 32 22, 36 22 C40 22, 48 28, 48 36 C48 44, 40 50, 36 50 C32 50, 24 44, 24 36Z" stroke="url(#logoGrad)" stroke-width="2.5" fill="rgba(0,224,134,0.1)"/>
+                <circle cx="36" cy="36" r="4" fill="#00E086"/>
+                <defs>
+                    <linearGradient id="logoGrad" x1="0" y1="0" x2="72" y2="72">
+                        <stop offset="0%" stop-color="#00E086"/>
+                        <stop offset="100%" stop-color="#00B4D8"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h1 class="splash-title">Nceda<span>Ledger</span></h1>
+            <div class="loader-bar"><div class="loader-fill"></div></div>
+            <p style="color: rgba(255,255,255,0.5); font-size: 13px; font-family: monospace;" id="splash-text">Booting spatial environment...</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- MAIN SPATIAL LAYOUT                                         -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="app" class="vision-layout" style="display: none;">
+        
+        <!-- Main Glass Window -->
+        <main class="vision-main" style="flex-direction: column;">
+            
+            <!-- Global Top Bar -->
+            <header class="top-bar">
+                <div class="store-info">
+                    <div class="avatar" id="globalAvatar" style="background: var(--accent-primary); color: #000; font-size: 16px; font-weight:bold;">MT</div>
+                    <div>
+                        <div class="store-name" id="globalStoreName">Ashu's Superstores</div>
+                        <div class="store-subtitle">Verified Merchant Dashboard</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Area -->
+            <section class="vision-content">
+                
+                <!-- LEDGER VIEW (Merchant) -->
+                <div id="view-ledger" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="content-header">
+                        <div class="content-title">
+                            <h2>Digital Ledger</h2>
+                            <p id="ledger-subtitle">Showing active store credit</p>
+                        </div>
+                        
+                        <div class="search-pill">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" id="searchInput" placeholder="Search customers or ID numbers...">
+                        </div>
+                    </div>
+
+                    <div class="glass-table-container">
+                        <table class="glass-table">
+                            <thead>
+                                <tr>
+                                    <th>Customer Info</th>
+                                    <th>Amount</th>
+                                    <th>Items</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledgerTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ANALYTICS VIEW -->
+                <div id="view-analytics" style="display: none; flex-direction: column; height: 100%;">
+                    <div class="content-header">
+                        <div class="content-title">
+                            <h2>Analytics & Insights</h2>
+                            <p>Store performance and portfolio overview</p>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-dashboard">
+                        <!-- KPI Row -->
+                        <div class="kpi-row">
+                            <div class="kpi-card">
+                                <div class="kpi-title"><span style="color:var(--accent-warning); font-size:16px;">💰</span> Total Outstanding</div>
+                                <div class="kpi-value" id="kpi-outstanding">R0</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-title"><span style="color:var(--accent-primary); font-size:16px;">📊</span> Active Debts</div>
+                                <div class="kpi-value" id="kpi-active">0</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-title"><span style="color:var(--text-muted); font-size:16px;">✅</span> Settled This Month</div>
+                                <div class="kpi-value" id="kpi-settled">0</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-title"><span style="color:var(--accent-info); font-size:16px;">📈</span> Repayment Rate</div>
+                                <div class="kpi-value" id="kpi-rate">0%</div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row -->
+                        <div class="charts-row">
+                            <div class="chart-card">
+                                <div class="chart-header">Portfolio Split</div>
+                                <div class="chart-body">
+                                    <canvas id="donutChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SETTINGS VIEW (Merchant) -->
+                <div id="view-settings" style="display: none; flex-direction: column; height: 100%;">
+                    <div class="content-header">
+                        <div class="content-title">
+                            <h2>Store Settings</h2>
+                            <p>Manage your merchant profile</p>
+                        </div>
+                    </div>
+                    <div class="settings-container">
+                        <form onsubmit="event.preventDefault(); App.saveSettings(this);">
+                            <div class="settings-group">
+                                <label>Store Name</label>
+                                <input type="text" name="storeName" class="settings-input" value="Ashu's Superstores" required>
+                            </div>
+                            <div class="settings-group">
+                                <label>Owner Initials</label>
+                                <input type="text" name="ownerInitials" class="settings-input" value="MT" maxlength="2" required>
+                            </div>
+                            <div class="settings-group">
+                                <label>Notification Preferences</label>
+                                <select class="settings-input" style="appearance: auto; cursor: pointer; color: #111; background: #fff;">
+                                    <option>WhatsApp & SMS</option>
+                                    <option>WhatsApp Only</option>
+                                    <option>SMS Only</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-glass primary" style="font-size: 14px; padding: 10px 20px;">Save Profile</button>
+                        </form>
+                    </div>
+                </div>
+
+            </section>
+        </main>
+
+        <!-- Floating Bottom Bar (Merged Navigation & Compliance) -->
+        <nav class="vision-bottom-bar" id="mainNav">
+            <!-- Navigation Links -->
+            <button class="toolbar-btn active" title="Digital Ledger" onclick="App.navTo('ledger', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            </button>
+            <button class="toolbar-btn" title="Analytics" onclick="App.navTo('analytics', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+            </button>
+            <button class="toolbar-btn" title="Settings" onclick="App.navTo('settings', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </button>
+
+            <div class="bottom-divider"></div>
+
+            <!-- Quick Actions -->
+            <button class="toolbar-btn" style="color: var(--accent-primary);" title="Log New Debt" onclick="App.openModal('debtModal')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
+            <button class="toolbar-btn" style="color: var(--accent-info);" title="Open Customer Phone (Demo Tool)" onclick="Phone.openPortal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            </button>
+
+            <div class="bottom-divider"></div>
+            
+            <!-- Compliance & Status -->
+            <div class="bottom-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                <span class="badge-text">NCA Compliant</span>
+            </div>
+            <div class="bottom-divider"></div>
+            <div class="bottom-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <span class="badge-text">POPIA Protected</span>
+            </div>
+            <div class="bottom-divider"></div>
+            <div class="bottom-badge" style="color: var(--accent-primary);">
+                <div style="width:8px; height:8px; background:var(--accent-primary); border-radius:50%; box-shadow: 0 0 10px var(--accent-primary);"></div>
+                <span class="badge-text">System Online</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- GLASS MODALS                                                -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="debtModal">
+        <div class="glass-modal">
+            <div class="modal-header">
+                <h3>Log New Debt</h3>
+                <button class="btn-close" onclick="App.closeModal('debtModal')">✕</button>
+            </div>
+            <form onsubmit="event.preventDefault(); App.submitDebt(this);">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" name="cName" class="glass-input" required placeholder="e.g. Sipho Dlamini">
+                </div>
+                <!-- ADDED NATIONAL ID FIELD -->
+                <div class="form-group">
+                    <label>National ID (13 Digits)</label>
+                    <input type="text" name="cId" class="glass-input" required pattern="\d{13}" maxlength="13" title="Must be exactly 13 digits" placeholder="e.g. 9001015000080">
+                </div>
+                <div style="display:flex; gap:16px;">
+                    <div class="form-group" style="flex:1">
+                        <label>Phone Number</label>
+                        <input type="text" name="cPhone" class="glass-input" required placeholder="06X XXX XXXX">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Amount (R)</label>
+                        <input type="number" name="cAmount" class="glass-input" required min="10" placeholder="0.00">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Items / Description</label>
+                    <input type="text" name="cItems" class="glass-input" required placeholder="e.g. Bread, Milk, Sugar">
+                </div>
+                <div style="background:rgba(0,224,134,0.1); border:1px solid rgba(0,224,134,0.2); padding:12px; border-radius:8px; font-size:12px; color:var(--accent-primary); display:flex; gap:8px; align-items:center;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    Customer will receive WhatsApp consent prompt linking to ID.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-glass" onclick="App.closeModal('debtModal')">Cancel</button>
+                    <button type="submit" class="btn-glass primary">Log Debt</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- TRUST SCORE MODAL (Alternative Credit Profile)              -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="trustScoreModal">
+        <div class="glass-modal" style="max-width: 420px; text-align: center;">
+            <div class="modal-header" style="justify-content: center; position: relative; margin-bottom: 16px;">
+                <h3 style="color: var(--accent-info); font-size: 18px; letter-spacing: 1px; text-transform: uppercase;">Alternative Credit Profile</h3>
+                <button class="btn-close" style="position: absolute; right: 0; top: -10px;" onclick="App.closeModal('trustScoreModal')">✕</button>
+            </div>
+            
+            <div style="margin: 16px 0; position: relative; display: inline-block;">
+                <svg width="160" height="160" viewBox="0 0 160 160">
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12" />
+                    <circle id="ts-circle" cx="80" cy="80" r="70" fill="none" stroke="var(--accent-primary)" stroke-width="12" stroke-dasharray="439.8" stroke-dashoffset="439.8" stroke-linecap="round" style="transition: stroke-dashoffset 1s ease-out, stroke 0.5s;" transform="rotate(-90 80 80)" />
+                </svg>
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                    <div id="ts-score" style="font-size: 42px; font-weight: 800; color: #fff; letter-spacing: -1px; line-height: 1;">0</div>
+                    <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Trust Score</div>
+                </div>
+            </div>
+
+            <h2 id="ts-name" style="font-size: 22px; font-weight: 700; margin-bottom: 4px;">Customer Name</h2>
+            <div id="ts-id" style="font-size: 13px; font-family: monospace; color: rgba(255,255,255,0.4); margin-bottom: 24px;">ID: </div>
+
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border); padding: 16px; border-radius: 16px; text-align: left;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-info)" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--accent-info); font-weight: 700; letter-spacing: 1px;">Behavioural Data Asset</div>
+                </div>
+                <p id="ts-desc" style="font-size: 13.5px; color: rgba(255,255,255,0.85); line-height: 1.6; margin: 0;"></p>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 16px; gap: 12px;">
+                <div style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 16px; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Lifetime FMCG Credit</div>
+                    <div id="ts-borrowed" style="font-size: 18px; font-weight: 700; color: #fff; margin-top: 6px;">R0</div>
+                </div>
+                <div style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); padding: 16px; border-radius: 16px; text-align: center;">
+                    <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Repayment Reliability</div>
+                    <div id="ts-rate" style="font-size: 18px; font-weight: 700; color: #fff; margin-top: 6px;">0%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PHYSICAL PHONE SIMULATOR                                    -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div class="phone-container" id="phoneSim">
+        <div class="phone-backdrop" onclick="Phone.hide()"></div>
+        <div class="phone-wrapper">
+            <div class="phone-hardware">
+                <div class="hw-btn hw-mute"></div>
+                <div class="hw-btn hw-vol-up"></div>
+                <div class="hw-btn hw-vol-down"></div>
+                <div class="hw-btn hw-power"></div>
+                
+                <div class="phone-screen">
+                    <div class="dynamic-island"></div>
+                    <div id="phoneScreenContent" style="height:100%; width:100%;"></div>
+                    <div class="home-indicator" onclick="Phone.hide()"></div>
+                </div>
+            </div>
+            
+            <button class="phone-massive-close" onclick="Phone.hide()" title="Close Phone">✕</button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- JAVASCRIPT LOGIC                                            -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <script>
+        const App = (function() {
+            // Internal State
+            let debts = [];
+            
+            // Helpers
+            const formatR = (n) => 'R' + Number(n).toFixed(2);
+            const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+            
+            // Notifications
+            const toast = (msg, type='info') => {
+                const c = document.getElementById('toastContainer');
+                const t = document.createElement('div');
+                const color = type==='success' ? '#00E086' : type==='error' ? '#FF6B6B' : '#00B4D8';
+                t.className = 'toast';
+                t.innerHTML = `<div style="width:8px; height:8px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div> ${msg}`;
+                c.appendChild(t);
+                setTimeout(() => { t.style.opacity = 0; setTimeout(()=>t.remove(), 400); }, 3000);
+            };
+
+            // Fetch real data from the Python backend
+            const fetchLedger = async () => {
+                try {
+                    const response = await fetch('http://localhost:8000/api/ledger');
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    
+                    const rawData = await response.json();
+                    
+                    // Map the Python backend response to the frontend's expected format
+                    debts = rawData.map(d => ({
+                        id: d.id,
+                        customerName: d.customer_name || 'Customer Name',
+                        customerId: d.customer_id || 'ID',
+                        customerPhone: d.customer_phone || 'Phone',
+                        amount: d.amount,
+                        items: typeof d.items === 'string' ? d.items.split(',') : (d.items || ['General Goods']),
+                        status: d.status,
+                        createdAt: d.created_at || new Date().toISOString(),
+                        discount: d.discount
+                    }));
+                    
+                    renderTable();
+                    updateStats();
+                } catch (error) {
+                    console.error("Database connection error:", error);
+                    toast("Running in offline mode - couldn't reach API", "error");
+                }
+            };
+
+            // UI Renderers
+            const renderTable = (filter = '') => {
+                const tbody = document.getElementById('ledgerTableBody');
+                let filtered = debts;
+                if(filter) {
+                    const q = filter.toLowerCase();
+                    filtered = debts.filter(d => 
+                        d.customerName.toLowerCase().includes(q) || 
+                        d.customerPhone.includes(q) ||
+                        d.customerId.toString().includes(q)
+                    );
+                }
+                
+                // Sort by date desc
+                filtered.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                if(filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:rgba(255,255,255,0.4)">No records found</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map(d => {
+                    const safeName = d.customerName || 'Unknown Customer';
+                    const initials = safeName.split(' ').map(n=>n[0]).join('').substring(0, 2);
+                    const itemsDisplay = Array.isArray(d.items) ? d.items.join(', ') : d.items;
+                    
+                    // The new Alternative Credit Profile Button added to every row
+                    let actions = `<button class="btn-glass" style="border-color: rgba(0,180,216,0.4); color: var(--accent-info);" onclick="App.showTrustScore('${d.id}')" title="View Trust Score"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:4px; margin-top:-2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Score</button> `;
+                    
+                    // Merchants now only send actions/reminders. The actual payment happens in the customer portal.
+                    if(d.status === 'PENDING') actions += `<button class="btn-glass" onclick="App.sendActionToast('Consent request resent to ${d.customerName}.')">Resend</button>`;
+                    if(d.status === 'ACTIVE') actions += `<button class="btn-glass primary" onclick="App.sendActionToast('Smart-Settle triggered. Awaiting payment from ${d.customerName}.')">Smart-Settle</button>`;
+                    if(d.status === 'OVERDUE') actions += `<button class="btn-glass" style="color:var(--accent-danger); border-color:var(--accent-danger)" onclick="App.sendActionToast('Payment reminder sent to ${d.customerName}.')">Remind</button>`;
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="customer-cell">
+                                    <div class="avatar">${initials}</div>
+                                    <div class="cust-details">
+                                        <div>${safeName}</div>
+                                        <div>ID: ${d.customerId}</div> <!-- ID DISPLAYED HERE -->
+                                        <div style="font-size:10px; color:rgba(255,255,255,0.4);">${d.customerPhone}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="font-weight:600">${formatR(d.amount)}</td>
+                            <td><div style="font-size:12px; color:var(--text-muted)">${itemsDisplay}</div></td>
+                            <td style="font-size:13px">${new Date(d.createdAt).toLocaleDateString('en-ZA', {month:'short', day:'numeric'})}</td>
+                            <td><span class="status-badge status-${d.status.toLowerCase()}">${d.status}</span></td>
+                            <td style="text-align:right"><div class="action-row" style="justify-content:flex-end">${actions}</div></td>
+                        </tr>
+                    `;
+                }).join('');
+            };
+
+            const updateStats = () => {
+                const active = debts.filter(d => d.status === 'ACTIVE');
+                const settled = debts.filter(d => d.status === 'SETTLED');
+                const outAmt = debts.filter(d => d.status !== 'SETTLED').reduce((sum, d) => sum + d.amount, 0);
+                const rate = debts.length ? Math.round((settled.length / debts.length) * 100) : 0;
+
+                document.getElementById('kpi-outstanding').innerText = formatR(outAmt);
+                document.getElementById('kpi-active').innerText = active.length;
+                document.getElementById('kpi-settled').innerText = settled.length;
+                document.getElementById('kpi-rate').innerText = rate + '%';
+
+                document.getElementById('ledger-subtitle').innerText = `${debts.length} total records`;
+
+                updateChart(active.length, debts.filter(d=>d.status==='PENDING').length, settled.length, debts.filter(d=>d.status==='OVERDUE').length);
+            };
+
+            // Chart
+            let donut;
+            const updateChart = (act, pen, set, ovr) => {
+                const ctx = document.getElementById('donutChart');
+                if(!ctx) return;
+                if(donut) donut.destroy();
+                
+                Chart.defaults.color = 'rgba(255,255,255,0.6)';
+                donut = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Active', 'Pending', 'Settled', 'Overdue'],
+                        datasets: [{
+                            data: [act, pen, set, ovr],
+                            backgroundColor: ['#00E086', '#FFB347', 'rgba(255,255,255,0.2)', '#FF6B6B'],
+                            borderWidth: 0,
+                            cutout: '75%'
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: {size: 11} } } }
+                    }
+                });
+            };
+
+            // API Exports
+            return {
+                init: () => {
+                    fetchLedger();
+                    document.getElementById('searchInput').addEventListener('input', e => renderTable(e.target.value));
+                },
+                getDebt: (id) => debts.find(d => d.id === id || d.id.toString() === id.toString()),
+                getDebtList: () => debts,
+                updateDebtStatus: async (id, status) => {
+                    try {
+                        const response = await fetch(`http://localhost:8000/api/debts/${id}/status?status=${status}`, {
+                            method: 'PATCH'
+                        });
+                        
+                        if (response.ok) {
+                            fetchLedger();
+                        } else {
+                            toast('Failed to update status on server', 'error');
+                        }
+                    } catch(error) {
+                        console.error('API Error:', error);
+                        toast('Connection error updating status', 'error');
+                    }
+                },
+                openModal: (id) => document.getElementById(id).classList.add('active'),
+                closeModal: (id) => {
+                    document.getElementById(id).classList.remove('active');
+                    if(id==='debtModal') document.querySelector('#debtModal form').reset();
+                },
+                submitDebt: async (form) => {
+                    // Package the data to match your Python DebtSubmission model
+                    const payload = {
+                        customer_name: form.cName.value,
+                        customer_id: form.cId.value,
+                        customer_phone: form.cPhone.value,
+                        amount: parseFloat(form.cAmount.value),
+                        items: form.cItems.value
+                    };
+
+                    try {
+                        // Send the data to your FastAPI backend
+                        const response = await fetch('http://localhost:8000/api/debts', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.ok) {
+                            App.closeModal('debtModal');
+                            toast('Debt logged securely to Neon Postgres!', 'success');
+                            
+                            // Refresh the table with the newly saved database records
+                            fetchLedger(); 
+                        } else {
+                            // Extract the exact error message from the Python backend
+                            const errorData = await response.json();
+                            toast(errorData.detail || 'Failed to log debt.', 'error');
+                        }
+                    } catch (error) {
+                        console.error("API Error:", error);
+                        toast('Connection error', 'error');
+                    }
+                },
+                
+                showTrustScore: (id) => {
+                    const debt = debts.find(d => d.id === id || d.id.toString() === id.toString());
+                    if(!debt) return;
+                    
+                    document.getElementById('ts-name').innerText = debt.customerName;
+                    document.getElementById('ts-id').innerText = `National ID: ${debt.customerId}`;
+                    
+                    let score = 0;
+                    let desc = "";
+                    let color = "var(--accent-primary)";
+                    let rate = "100%";
+                    
+                    // Generate realistic logic based on status
+                    if(debt.status === 'SETTLED') {
+                        score = randInt(780, 840);
+                        desc = `Excellent FMCG reliability. Consistently settles >R200 grocery debts immediately upon salary deposit. Demonstrates high financial stability and is highly eligible for formal micro-credit products.`;
+                        color = "var(--accent-primary)";
+                        rate = "100%";
+                    } else if (debt.status === 'ACTIVE') {
+                        score = randInt(650, 740);
+                        desc = `Good reliability. Regular purchaser of household staples on credit. Typically settles within standard 30-day billing cycles without requiring smart-settle interventions.`;
+                        color = "var(--accent-primary)";
+                        rate = "92%";
+                    } else if (debt.status === 'PENDING') {
+                        score = randInt(550, 620);
+                        desc = `Building history. Recent entry into the digital ledger system. Waiting for the first completed repayment cycle to establish a firm behavioural baseline.`;
+                        color = "var(--accent-warning)";
+                        rate = "N/A";
+                    } else { // OVERDUE
+                        score = randInt(350, 480);
+                        desc = `High risk. Irregular repayment patterns detected on recent essential goods. Demonstrates signs of mailbox-effect distress. Requires immediate intervention or smart-settle restructuring.`;
+                        color = "var(--accent-danger)";
+                        rate = "45%";
+                    }
+                    
+                    // Animate the counter
+                    const scoreEl = document.getElementById('ts-score');
+                    scoreEl.innerText = '0';
+                    let currentScore = 0;
+                    const scoreInterval = setInterval(() => {
+                        currentScore += 15;
+                        if(currentScore >= score) {
+                            scoreEl.innerText = score;
+                            clearInterval(scoreInterval);
+                        } else {
+                            scoreEl.innerText = currentScore;
+                        }
+                    }, 10);
+                    
+                    document.getElementById('ts-desc').innerText = desc;
+                    document.getElementById('ts-borrowed').innerText = formatR(debt.amount * randInt(2, 6) + 350); 
+                    document.getElementById('ts-rate').innerText = rate;
+                    
+                    const circle = document.getElementById('ts-circle');
+                    circle.style.stroke = color;
+                    scoreEl.style.color = color;
+                    
+                    // Circumference of r=70 is 2 * pi * 70 = 439.8
+                    const offset = 439.8 - (439.8 * (score / 850));
+                    
+                    // Reset animation instantly
+                    circle.style.transition = 'none';
+                    circle.style.strokeDashoffset = '439.8';
+                    
+                    App.openModal('trustScoreModal');
+                    
+                    // Trigger animation after modal opens
+                    setTimeout(() => {
+                        circle.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.5s';
+                        circle.style.strokeDashoffset = offset;
+                    }, 50);
+                },
+
+                sendActionToast: (msg) => {
+                    toast(msg, 'info');
+                },
+                triggerGlobalSmartSettle: () => {
+                    toast('Smart-Settle activated: Monitoring salary deposits for active debts.', 'success');
+                },
+                navTo: (section, btn) => {
+                    if (btn) {
+                        document.querySelectorAll('#mainNav .toolbar-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    }
+                    
+                    document.getElementById('view-ledger').style.display = 'none';
+                    document.getElementById('view-analytics').style.display = 'none';
+                    document.getElementById('view-settings').style.display = 'none';
+
+                    if (section === 'ledger') {
+                        document.getElementById('view-ledger').style.display = 'flex';
+                        renderTable();
+                    } else if (section === 'analytics') {
+                        document.getElementById('view-analytics').style.display = 'flex';
+                        updateStats();
+                    } else if (section === 'settings') {
+                        document.getElementById('view-settings').style.display = 'flex';
+                    }
+                },
+                saveSettings: (form) => {
+                    const storeName = form.storeName.value;
+                    const initials = form.ownerInitials.value;
+                    document.getElementById('globalStoreName').innerText = storeName;
+                    document.getElementById('globalAvatar').innerText = initials.toUpperCase();
+                    toast('Store profile updated successfully.', 'success');
+                },
+                toast
+            };
+        })();
+
+        const Phone = (function() {
+            const el = () => document.getElementById('phoneSim');
+            const screen = () => document.getElementById('phoneScreenContent');
+            
+            return {
+                hide: () => el().classList.remove('active'),
+                
+                // New Dedicated Customer Portal
+                openPortal: () => {
+                    const activeDebts = App.getDebtList().filter(d => d.status !== 'SETTLED');
+                    
+                    let debtsHtml = '';
+                    if(activeDebts.length === 0) {
+                        debtsHtml = `<div style="text-align:center; color:rgba(255,255,255,0.5); padding:40px 20px;">No pending actions. You're all caught up!</div>`;
+                    } else {
+                        debtsHtml = activeDebts.map(d => `
+                            <div class="cp-card ${d.status.toLowerCase()}">
+                                <div class="cp-card-title">${d.customerName} - Ashu's Superstores</div>
+                                <div class="cp-card-amt">R${d.amount.toFixed(2)}</div>
+                                <div style="font-size:12px; color:rgba(255,255,255,0.5); margin-bottom:12px;">Items: ${Array.isArray(d.items) ? d.items.join(', ') : d.items}</div>
+                                ${d.status === 'PENDING' 
+                                    ? `<button style="width:100%; padding:10px; border-radius:10px; background:rgba(255,255,255,0.1); color:#fff; font-weight:600; border:1px solid rgba(255,255,255,0.2); cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" onclick="Phone.consentFlow('${d.id}')">Review Request</button>`
+                                    : `<button style="width:100%; padding:10px; border-radius:10px; background:var(--accent-primary); color:#000; font-weight:700; border:none; cursor:pointer; box-shadow: 0 4px 10px rgba(0,224,134,0.2);" onclick="Phone.momoFlow('${d.id}')">Pay via MoMo</button>`
+                                }
+                            </div>
+                        `).join('');
+                    }
+
+                    screen().innerHTML = `
+                        <div class="cp-app">
+                            <div class="cp-header">Nceda Consumer App</div>
+                            <div class="cp-body">
+                                <div style="font-size:12px; color:rgba(255,255,255,0.5); text-transform:uppercase; font-weight:600; margin-bottom:4px; margin-left:4px; letter-spacing:1px;">Action Required</div>
+                                ${debtsHtml}
+                            </div>
+                        </div>
+                    `;
+                    el().classList.add('active');
+                },
+
+                consentFlow: (id) => {
+                    const debt = App.getDebt(id);
+                    const msg = `Hi ${debt.customerName} 👋\n\nAshu's Spaza logged R${debt.amount.toFixed(2)} on your account.\n\nTap below to Consent & Approve.`;
+                    
+                    screen().innerHTML = `
+                        <div class="wa-app">
+                            <div class="wa-header">
+                                <span class="wa-back" onclick="Phone.openPortal()">‹</span>
+                                <div class="wa-avatar">NL</div>
+                                <div>
+                                    <div class="wa-name">Nceda Secure <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent-primary)"><circle cx="12" cy="12" r="12"/><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" fill="#000"/></svg></div>
+                                    <div style="font-size:11px; color:rgba(255,255,255,0.5)">Verified Financial Connection</div>
+                                </div>
+                            </div>
+                            <div class="wa-chat-area">
+                                <div style="text-align:center; font-size:11px; color:rgba(255,255,255,0.4); background:rgba(255,255,255,0.05); padding:6px 12px; border-radius:12px; align-self:center; backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.05);">🔒 Protected by POPIA</div>
+                                <div class="wa-bubble">
+                                    ${msg.replace(/\n/g, '<br>')}
+                                    <button class="wa-btn" onclick="Phone.handleConsent('${id}')">✅ Approve Consent</button>
+                                    <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.4); margin-top:8px;">${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                },
+                handleConsent: (id) => {
+                    screen().innerHTML = `
+                        <div style="display:flex; flex-direction:column; height:100%; align-items:center; justify-content:center; text-align:center; padding:24px; background:#0d1f2d; animation:slideUp 0.3s forwards">
+                            <div style="width:80px; height:80px; background:rgba(0,224,134,0.1); border:1px solid rgba(0,224,134,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#00E086; font-size:40px; margin-bottom:20px; box-shadow:0 0 30px rgba(0,224,134,0.2);">✓</div>
+                            <h2 style="color:#fff; margin-bottom:12px">Consent Approved!</h2>
+                            <p style="color:rgba(255,255,255,0.6); font-size:14px; line-height:1.5">Your credit activity is securely recorded.</p>
+                        </div>
+                    `;
+                    App.updateDebtStatus(id, 'ACTIVE');
+                    App.toast('Customer approved consent', 'success');
+                    setTimeout(() => Phone.openPortal(), 2000);
+                },
+                momoFlow: (id) => {
+                    const debt = App.getDebt(id);
+                    const amt = debt.discount ? debt.amount * (1 - debt.discount/100) : debt.amount;
+                    screen().innerHTML = `
+                        <div class="wa-app" style="background:#0d1f2d;">
+                            <div class="wa-header" style="background:rgba(255,204,0,0.1); border-bottom-color:rgba(255,204,0,0.2);">
+                                <span class="wa-back" style="color:#FFCC00" onclick="Phone.openPortal()">‹</span>
+                                <div style="color:#FFCC00; font-weight:800; font-size:18px;">MTN MoMo</div>
+                            </div>
+                            <div style="flex:1; padding:32px 24px; display:flex; flex-direction:column; align-items:center; position:relative; z-index:1;">
+                                <div style="color:rgba(255,255,255,0.6); font-size:14px">Payment to</div>
+                                <div style="font-size:20px; font-weight:600; color:#fff; margin-bottom:40px">Ashu's superstores</div>
+                                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); padding:32px; border-radius:24px; width:100%; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3); backdrop-filter:blur(10px);">
+                                    <div style="color:rgba(255,255,255,0.5); font-size:12px; text-transform:uppercase; font-weight:600; letter-spacing:1px; margin-bottom:8px;">Amount Due</div>
+                                    <div style="font-size:48px; font-weight:800; color:#FFCC00; letter-spacing:-1px; margin-bottom:8px"><span style="font-size:24px; color:rgba(255,204,0,0.5); vertical-align:super; margin-right:4px;">R</span>${amt.toFixed(2)}</div>
+                                    ${debt.discount ? `<div style="display:inline-block; background:rgba(0,224,134,0.15); border:1px solid rgba(0,224,134,0.3); color:#00E086; padding:6px 12px; border-radius:12px; font-size:13px; font-weight:700;">-${debt.discount}% Smart-Settle</div>` : ''}
+                                </div>
+                                
+                                <button id="momoBtn" style="margin-top:auto; width:100%; padding:16px; background:#FFCC00; color:#000; border:none; border-radius:16px; font-size:16px; font-weight:800; cursor:pointer; margin-bottom:24px; box-shadow:0 8px 20px rgba(255,204,0,0.2); transition:0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">Confirm Payment</button>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('momoBtn').addEventListener('click', function() {
+                        this.innerText = "Processing..."; this.style.opacity = 0.7; this.style.transform = 'scale(0.98)';
+                        setTimeout(() => {
+                            screen().innerHTML = `
+                                <div style="display:flex; flex-direction:column; height:100%; align-items:center; justify-content:center; text-align:center; padding:24px; background:#0d1f2d; animation:slideUp 0.3s forwards">
+                                    <div style="width:80px; height:80px; background:rgba(255,204,0,0.1); border:1px solid rgba(255,204,0,0.3); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#FFCC00; font-size:40px; margin-bottom:20px; box-shadow:0 0 30px rgba(255,204,0,0.2);">✓</div>
+                                    <h2 style="color:#fff; margin-bottom:12px">Payment Successful</h2>
+                                    <p style="color:rgba(255,255,255,0.6); font-size:14px">R${amt.toFixed(2)} paid to Ashu's superstores.</p>
+                                </div>
+                            `;
+                            App.updateDebtStatus(id, 'SETTLED');
+                            App.toast('Payment received from customer', 'success');
+                            setTimeout(() => Phone.openPortal(), 2000);
+                        }, 1200);
+                    });
+                }
+            };
+        })();
+
+        // Boot Sequence
+        window.onload = () => {
+            const splash = document.getElementById('splash-screen');
+            const texts = ["Authenticating...", "Loading Spatial UI...", "Syncing Ledgers..."];
+            let i = 0;
+            setInterval(() => { if(i<texts.length) document.getElementById('splash-text').innerText = texts[i++]; }, 600);
+            
+            setTimeout(() => {
+                splash.style.opacity = 0;
+                splash.style.visibility = 'hidden';
+                document.getElementById('app').style.display = 'flex';
+                App.init();
+                setTimeout(() => splash.remove(), 600);
+            }, 2500);
+        };
+    </script>
+</body>
+</html>
