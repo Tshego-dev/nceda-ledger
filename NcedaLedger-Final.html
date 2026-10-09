@@ -1339,21 +1339,44 @@
     <!-- JAVASCRIPT LOGIC                                            -->
     <!-- ═══════════════════════════════════════════════════════════ -->
     <script>
+        // Backend base URL. Override without editing this file by setting
+        // localStorage.nceda_api_base (e.g. "https://api.example.com") in the console.
+        const API_BASE = (() => {
+            try { return localStorage.getItem('nceda_api_base') || 'http://localhost:8000'; }
+            catch (e) { return 'http://localhost:8000'; }
+        })();
+
+        // Escape any user-supplied value before putting it into innerHTML.
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+
         const App = (function() {
             // Internal State
             let debts = [];
             
             // Helpers
             const formatR = (n) => 'R' + Number(n).toFixed(2);
-            const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-            
-            // Notifications
+
+            // Deterministic pseudo-random in [min, max] seeded by a debt id, so a
+            // customer's demo trust score doesn't change on every click.
+            const seededInt = (seed, min, max) => {
+                let x = (Number(seed) * 2654435761) >>> 0;
+                x = ((x ^ (x >>> 15)) * 2246822519) >>> 0;
+                x = (x ^ (x >>> 13)) >>> 0;
+                return min + (x % (max - min + 1));
+            };
+
+            // Notifications (message is inserted as text, never as HTML)
             const toast = (msg, type='info') => {
                 const c = document.getElementById('toastContainer');
                 const t = document.createElement('div');
                 const color = type==='success' ? '#00E086' : type==='error' ? '#FF6B6B' : '#00B4D8';
                 t.className = 'toast';
-                t.innerHTML = `<div style="width:8px; height:8px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}"></div> ${msg}`;
+                const dot = document.createElement('div');
+                dot.style.cssText = `width:8px; height:8px; border-radius:50%; background:${color}; box-shadow:0 0 10px ${color}`;
+                t.appendChild(dot);
+                t.appendChild(document.createTextNode(' ' + msg));
                 c.appendChild(t);
                 setTimeout(() => { t.style.opacity = 0; setTimeout(()=>t.remove(), 400); }, 3000);
             };
@@ -1361,7 +1384,7 @@
             // Fetch real data from the Python backend
             const fetchLedger = async () => {
                 try {
-                    const response = await fetch('http://localhost:8000/api/ledger');
+                    const response = await fetch(`${API_BASE}/api/ledger`);
                     if (!response.ok) throw new Error('Network response was not ok');
                     
                     const rawData = await response.json();
@@ -1409,17 +1432,21 @@
                 }
 
                 tbody.innerHTML = filtered.map(d => {
-                    const safeName = d.customerName || 'Unknown Customer';
-                    const initials = safeName.split(' ').map(n=>n[0]).join('').substring(0, 2);
-                    const itemsDisplay = Array.isArray(d.items) ? d.items.join(', ') : d.items;
+                    const rawName = d.customerName || 'Unknown Customer';
+                    const safeName = esc(rawName);
+                    const initials = esc(rawName.split(/\s+/).filter(Boolean).map(n=>n[0]).join('').substring(0, 2).toUpperCase());
+                    const itemsDisplay = esc(Array.isArray(d.items) ? d.items.join(', ') : d.items);
+                    const rowId = Number(d.id);
                     
                     // The new Alternative Credit Profile Button added to every row
-                    let actions = `<button class="btn-glass" style="border-color: rgba(0,180,216,0.4); color: var(--accent-info);" onclick="App.showTrustScore('${d.id}')" title="View Trust Score"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:4px; margin-top:-2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Score</button> `;
+                    let actions = `<button class="btn-glass" style="border-color: rgba(0,180,216,0.4); color: var(--accent-info);" onclick="App.showTrustScore(${rowId})" title="View Trust Score"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:middle; margin-right:4px; margin-top:-2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Score</button> `;
                     
                     // Merchants now only send actions/reminders. The actual payment happens in the customer portal.
-                    if(d.status === 'PENDING') actions += `<button class="btn-glass" onclick="App.sendActionToast('Consent request resent to ${d.customerName}.')">Resend</button>`;
-                    if(d.status === 'ACTIVE') actions += `<button class="btn-glass primary" onclick="App.sendActionToast('Smart-Settle triggered. Awaiting payment from ${d.customerName}.')">Smart-Settle</button>`;
-                    if(d.status === 'OVERDUE') actions += `<button class="btn-glass" style="color:var(--accent-danger); border-color:var(--accent-danger)" onclick="App.sendActionToast('Payment reminder sent to ${d.customerName}.')">Remind</button>`;
+                    // Handlers take the numeric id only; the name is looked up at click time,
+                    // so no user-controlled text ever lands inside an inline handler.
+                    if(d.status === 'PENDING') actions += `<button class="btn-glass" onclick="App.rowAction(${rowId}, 'resend')">Resend</button>`;
+                    if(d.status === 'ACTIVE') actions += `<button class="btn-glass primary" onclick="App.rowAction(${rowId}, 'settle')">Smart-Settle</button>`;
+                    if(d.status === 'OVERDUE') actions += `<button class="btn-glass" style="color:var(--accent-danger); border-color:var(--accent-danger)" onclick="App.rowAction(${rowId}, 'remind')">Remind</button>`;
 
                     return `
                         <tr>
@@ -1428,8 +1455,8 @@
                                     <div class="avatar">${initials}</div>
                                     <div class="cust-details">
                                         <div>${safeName}</div>
-                                        <div>ID: ${d.customerId}</div> <!-- ID DISPLAYED HERE -->
-                                        <div style="font-size:10px; color:rgba(255,255,255,0.4);">${d.customerPhone}</div>
+                                        <div>ID: ${esc(d.customerId)}</div> <!-- ID DISPLAYED HERE -->
+                                        <div style="font-size:10px; color:rgba(255,255,255,0.4);">${esc(d.customerPhone)}</div>
                                     </div>
                                 </div>
                             </td>
@@ -1495,7 +1522,7 @@
                 getDebtList: () => debts,
                 updateDebtStatus: async (id, status) => {
                     try {
-                        const response = await fetch(`http://localhost:8000/api/debts/${id}/status?status=${status}`, {
+                        const response = await fetch(`${API_BASE}/api/debts/${id}/status?status=${encodeURIComponent(status)}`, {
                             method: 'PATCH'
                         });
                         
@@ -1526,7 +1553,7 @@
 
                     try {
                         // Send the data to your FastAPI backend
-                        const response = await fetch('http://localhost:8000/api/debts', {
+                        const response = await fetch(`${API_BASE}/api/debts`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1565,22 +1592,22 @@
                     
                     // Generate realistic logic based on status
                     if(debt.status === 'SETTLED') {
-                        score = randInt(780, 840);
+                        score = seededInt(debt.id, 780, 840);
                         desc = `Excellent FMCG reliability. Consistently settles >R200 grocery debts immediately upon salary deposit. Demonstrates high financial stability and is highly eligible for formal micro-credit products.`;
                         color = "var(--accent-primary)";
                         rate = "100%";
                     } else if (debt.status === 'ACTIVE') {
-                        score = randInt(650, 740);
+                        score = seededInt(debt.id, 650, 740);
                         desc = `Good reliability. Regular purchaser of household staples on credit. Typically settles within standard 30-day billing cycles without requiring smart-settle interventions.`;
                         color = "var(--accent-primary)";
                         rate = "92%";
                     } else if (debt.status === 'PENDING') {
-                        score = randInt(550, 620);
+                        score = seededInt(debt.id, 550, 620);
                         desc = `Building history. Recent entry into the digital ledger system. Waiting for the first completed repayment cycle to establish a firm behavioural baseline.`;
                         color = "var(--accent-warning)";
                         rate = "N/A";
                     } else { // OVERDUE
-                        score = randInt(350, 480);
+                        score = seededInt(debt.id, 350, 480);
                         desc = `High risk. Irregular repayment patterns detected on recent essential goods. Demonstrates signs of mailbox-effect distress. Requires immediate intervention or smart-settle restructuring.`;
                         color = "var(--accent-danger)";
                         rate = "45%";
@@ -1601,7 +1628,7 @@
                     }, 10);
                     
                     document.getElementById('ts-desc').innerText = desc;
-                    document.getElementById('ts-borrowed').innerText = formatR(debt.amount * randInt(2, 6) + 350); 
+                    document.getElementById('ts-borrowed').innerText = formatR(debt.amount * seededInt(debt.id + 7, 2, 6) + 350); 
                     document.getElementById('ts-rate').innerText = rate;
                     
                     const circle = document.getElementById('ts-circle');
@@ -1626,6 +1653,16 @@
 
                 sendActionToast: (msg) => {
                     toast(msg, 'info');
+                },
+                rowAction: (id, kind) => {
+                    const d = debts.find(x => String(x.id) === String(id));
+                    if (!d) return;
+                    const messages = {
+                        resend: `Consent request resent to ${d.customerName}.`,
+                        settle: `Smart-Settle triggered. Awaiting payment from ${d.customerName}.`,
+                        remind: `Payment reminder sent to ${d.customerName}.`
+                    };
+                    toast(messages[kind] || 'Done.', 'info');
                 },
                 triggerGlobalSmartSettle: () => {
                     toast('Smart-Settle activated: Monitoring salary deposits for active debts.', 'success');
@@ -1678,9 +1715,9 @@
                     } else {
                         debtsHtml = activeDebts.map(d => `
                             <div class="cp-card ${d.status.toLowerCase()}">
-                                <div class="cp-card-title">${d.customerName} - Ashu's Superstores</div>
+                                <div class="cp-card-title">${esc(d.customerName)} - Ashu's Superstores</div>
                                 <div class="cp-card-amt">R${d.amount.toFixed(2)}</div>
-                                <div style="font-size:12px; color:rgba(255,255,255,0.5); margin-bottom:12px;">Items: ${Array.isArray(d.items) ? d.items.join(', ') : d.items}</div>
+                                <div style="font-size:12px; color:rgba(255,255,255,0.5); margin-bottom:12px;">Items: ${esc(Array.isArray(d.items) ? d.items.join(', ') : d.items)}</div>
                                 ${d.status === 'PENDING' 
                                     ? `<button style="width:100%; padding:10px; border-radius:10px; background:rgba(255,255,255,0.1); color:#fff; font-weight:600; border:1px solid rgba(255,255,255,0.2); cursor:pointer; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'" onclick="Phone.consentFlow('${d.id}')">Review Request</button>`
                                     : `<button style="width:100%; padding:10px; border-radius:10px; background:var(--accent-primary); color:#000; font-weight:700; border:none; cursor:pointer; box-shadow: 0 4px 10px rgba(0,224,134,0.2);" onclick="Phone.momoFlow('${d.id}')">Pay via MoMo</button>`
@@ -1703,7 +1740,7 @@
 
                 consentFlow: (id) => {
                     const debt = App.getDebt(id);
-                    const msg = `Hi ${debt.customerName} 👋\n\nAshu's Spaza logged R${debt.amount.toFixed(2)} on your account.\n\nTap below to Consent & Approve.`;
+                    const msg = `Hi ${esc(debt.customerName)} 👋\n\nAshu's Spaza logged R${debt.amount.toFixed(2)} on your account.\n\nTap below to Consent & Approve.`;
                     
                     screen().innerHTML = `
                         <div class="wa-app">

@@ -1,135 +1,228 @@
+import logging
 import os
+import re
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session, select, create_engine, SQLModel
-from pydantic import BaseModel
+from typing import Optional
+
 from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine, select
 
-# Import the database schemas
-from models import Customer, Merchant, Debt
+from models import Customer, Debt, DebtStatus, Merchant  # noqa: F401  (Merchant registers its table)
 
-# Load the Neon connection string
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
+logger = logging.getLogger("nceda")
 
-engine = create_engine(DATABASE_URL, echo=True)
+
+# ==========================================
+# CONFIGURATION
+# ==========================================
+def make_engine(url: str):
+    """Build the SQLAlchemy engine. SQLite (used by tests) needs special args."""
+    echo = os.getenv("SQL_ECHO", "0") == "1"
+    if url.startswith("sqlite"):
+        return create_engine(
+            url,
+            echo=echo,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    # pool_pre_ping recovers from connections that Neon closed while idle.
+    return create_engine(url, echo=echo, pool_pre_ping=True)
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is not set. Copy .env.example to .env and fill it in."
+    )
+
+engine = make_engine(DATABASE_URL)
+
+# Unset -> "*" so the HTML can be opened straight from disk (origin "null") in
+# development. In production set ALLOWED_ORIGINS to the real front-end origin.
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     SQLModel.metadata.create_all(engine)
     yield
 
-app = FastAPI(lifespan=lifespan)
+
+app = FastAPI(title="Nceda Ledger API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,  # no cookies are used; wildcard+credentials is unsafe
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type"],
 )
+
 
 def get_session():
     with Session(engine) as session:
         yield session
 
+
 # ==========================================
 # DATA PAYLOAD SCHEMAS
 # ==========================================
+_PHONE_RE = re.compile(r"^\+?\d{9,15}$")
+
+
 class DebtSubmission(BaseModel):
-    customer_name: str
-    customer_id: str
+    customer_name: str = Field(min_length=1, max_length=100)
+    customer_id: str = Field(pattern=r"^\d{13}$")  # 13-digit South African ID
     customer_phone: str
-    amount: float
-    items: str
+    amount: float = Field(gt=0, le=1_000_000)
+    items: str = Field(min_length=1, max_length=500)
+
+    @field_validator("customer_name", "items")
+    @classmethod
+    def _strip_and_require_text(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("must not be blank")
+        return v
+
+    @field_validator("customer_phone")
+    @classmethod
+    def _normalise_phone(cls, v: str) -> str:
+        cleaned = re.sub(r"[\s\-()]", "", v)
+        if not _PHONE_RE.match(cleaned):
+            raise ValueError("must be a valid phone number (9-15 digits)")
+        return cleaned
+
+    @field_validator("amount")
+    @classmethod
+    def _round_amount(cls, v: float) -> float:
+        return round(v, 2)
+
 
 # ==========================================
 # API ENDPOINTS
 # ==========================================
-
 @app.get("/")
 def read_root():
     return {"message": "Nceda Ledger API is running!"}
 
+
+@app.get("/health")
+def health(session: Session = Depends(get_session)):
+    """Liveness + database connectivity check."""
+    try:
+        session.exec(select(1)).one()
+    except SQLAlchemyError:
+        logger.exception("Health check failed")
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+    return {"status": "ok"}
+
+
 @app.get("/api/ledger")
-def get_ledger(session: Session = Depends(get_session)):
-    """Fetches all debts AND joins the customer data to populate the frontend."""
-    # Perform a SQL JOIN to get the Customer profile linked to each Debt
-    statement = select(Debt, Customer).join(Customer)
-    results = session.exec(statement).all()
-    
-    formatted_debts = []
-    for debt, customer in results:
-        formatted_debts.append({
+def get_ledger(
+    status: Optional[DebtStatus] = None,
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    session: Session = Depends(get_session),
+):
+    """Debts joined with their customer profile, newest first."""
+    statement = select(Debt, Customer).join(Customer, Debt.customer_id == Customer.id)
+    if status:
+        statement = statement.where(Debt.status == status.value)
+    statement = (
+        statement.order_by(Debt.created_at.desc(), Debt.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    return [
+        {
             "id": debt.id,
             "customer_name": customer.name,
-            "customer_id": customer.national_id,  # The 13-digit ID
+            "customer_id": customer.national_id,  # the 13-digit ID
             "customer_phone": customer.phone,
             "amount": debt.amount,
             "items": debt.items,
             "status": debt.status,
             "created_at": debt.created_at,
-            "discount": debt.discount
-        })
-        
-    return formatted_debts
+            "discount": debt.discount,
+        }
+        for debt, customer in session.exec(statement).all()
+    ]
 
-@app.post("/api/debts")
+
+@app.post("/api/debts", status_code=201)
 def log_new_debt(payload: DebtSubmission, session: Session = Depends(get_session)):
     """Handles the 'Log New Debt' form submission."""
     try:
-        # 1. Check if the ID already exists in the database
-        customer = session.exec(select(Customer).where(Customer.national_id == payload.customer_id)).first()
-        
-        # 2. If the ID exists, verify the name matches!
+        customer = session.exec(
+            select(Customer).where(Customer.national_id == payload.customer_id)
+        ).first()
+
         if customer:
-            if customer.name.strip().lower() != payload.customer_name.strip().lower():
+            # The ID is already registered: the name must match.
+            if customer.name.strip().lower() != payload.customer_name.lower():
+                # Deliberately do not echo the registered name back (POPIA).
                 raise HTTPException(
-                    status_code=400, 
-                    detail=f"Security Alert: ID {payload.customer_id} is already registered to {customer.name}."
+                    status_code=400,
+                    detail="Security Alert: this ID is already registered to a different name.",
                 )
-        
-        # 3. If ID does not exist, safely create a new profile
         else:
             customer = Customer(
                 name=payload.customer_name,
                 national_id=payload.customer_id,
-                phone=payload.customer_phone
+                phone=payload.customer_phone,
             )
             session.add(customer)
-            session.commit()
-            session.refresh(customer)
+            session.flush()  # assigns customer.id without committing
 
-        # 4. Create the new debt record
         new_debt = Debt(
-            customer_id=customer.id, 
+            customer_id=customer.id,
             amount=payload.amount,
             items=payload.items,
-            status="PENDING"
+            status=DebtStatus.PENDING.value,
         )
-        
         session.add(new_debt)
-        session.commit()
+        session.commit()  # customer + debt are committed together
         session.refresh(new_debt)
-        
+
         return {"message": "Debt logged successfully", "debt_id": new_debt.id}
-    
+
     except HTTPException:
-        # Pass our custom 400 security alert straight to the frontend
-        raise
-    except Exception as e:
         session.rollback()
+        raise
+    except SQLAlchemyError:
+        session.rollback()
+        logger.exception("Failed to log debt")  # never log the payload (contains ID)
         raise HTTPException(status_code=500, detail="Database transaction failed.")
 
+
 @app.patch("/api/debts/{debt_id}/status")
-def update_debt_status(debt_id: int, status: str, session: Session = Depends(get_session)):
+def update_debt_status(
+    debt_id: int, status: DebtStatus, session: Session = Depends(get_session)
+):
     """Updates the status when a customer approves consent or pays."""
     debt = session.get(Debt, debt_id)
     if not debt:
         raise HTTPException(status_code=404, detail="Debt not found")
-        
-    debt.status = status
-    session.add(debt)
-    session.commit()
-    return {"message": f"Status updated to {status}"}
+
+    if debt.status == DebtStatus.SETTLED.value and status != DebtStatus.SETTLED:
+        raise HTTPException(status_code=409, detail="A settled debt cannot be reopened.")
+
+    debt.status = status.value
+    try:
+        session.add(debt)
+        session.commit()
+    except SQLAlchemyError:
+        session.rollback()
+        logger.exception("Failed to update debt status")
+        raise HTTPException(status_code=500, detail="Database transaction failed.")
+    return {"message": f"Status updated to {status.value}"}
